@@ -1,0 +1,105 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+ * Design tokens
+ * Warna utama "hijau tua" mengikuti spesifikasi TASKS.md (#005a3f).
+ * ------------------------------------------------------------------------- */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Hijau brand / utama */
+  --color-brand-50: #e9f6f1;
+  --color-brand-100: #cdebdf;
+  --color-brand-200: #a6dbc5;
+  --color-brand-300: #6ec2a2;
+  --color-brand-400: #33a37d;
+  --color-brand-500: #0a8b62;
+  --color-brand-600: #00714e;
+  --color-brand-700: #005a3f;
+  --color-brand-800: #044531;
+  --color-brand-900: #04382a;
+
+  /* Hijau terang untuk bingkai deteksi wajah ("hijau stabilo / tosca") */
+  --color-scan: #2fe3a7;
+  --color-scan-dim: #1bbd8a;
+
+  /* Merah/rose untuk halaman gagal */
+  --color-danger-50: #fdecef;
+  --color-danger-100: #fbd9e0;
+  --color-danger-500: #e5484d;
+  --color-danger-600: #d13c41;
+}
+
+@layer base {
+  html {
+    /* Cegah zoom otomatis iOS saat input difokus */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-white font-sans text-slate-800 antialiased;
+    /* Hilangkan highlight biru saat tap di perangkat mobile */
+    -webkit-tap-highlight-color: transparent;
+    /* Cegah overflow horizontal (elemen melengkung / swipe) */
+    overflow-x: hidden;
+  }
+
+  /* Ikon SVG di dalam teks */
+  svg {
+    @apply shrink-0;
+  }
+
+  :root {
+    /* ── Sumber kebenaran untuk bottom navigation (fixed) ──
+     * Nilai ini dipakai DUA tempat:
+   * 1. components/siswa/bottomnav.vue -> tinggi nav  -> h-[var(--bottom-nav-h)]
+     * 2. halaman yang memakai nav      -> spasi bawah -> .pb-nav
+     * Karena keduanya membaca variabel yang sama, nav tidak akan menutupi konten.
+     * Ubah hanya nilai di sini bila tinggi/desain navigasi berubah.
+     */
+    --bottom-nav-h: calc(4.75rem + env(safe-area-inset-bottom)); /* 76px + safe area */
+    --bottom-nav-gap: 1.25rem; /* jarak aman antara konten terakhir dan nav */
+  }
+}
+
+@layer components {
+  /* Input dengan ikon di dalam (dipakai di halaman login) */
+  .field {
+    @apply w-full rounded-xl border border-slate-200 bg-slate-50/60 py-3.5 pl-11 pr-4 text-base
+      text-slate-900 outline-none transition placeholder:text-slate-400
+      focus:border-brand-300 focus:bg-white focus:ring-4 focus:ring-brand-500/10;
+  }
+
+  .btn-primary {
+    @apply flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3.5
+      text-base font-semibold text-white shadow-lg shadow-brand-700/25 transition
+      active:scale-[0.98] active:bg-brand-800 disabled:opacity-60 disabled:active:scale-100;
+  }
+
+  .btn-outline {
+    @apply flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200
+      bg-white px-5 py-3.5 text-base font-semibold text-slate-700 transition
+      active:scale-[0.98] active:bg-slate-50;
+  }
+
+  /* Judul bagian */
+  .section-title {
+    @apply text-base font-bold text-slate-900;
+  }
+
+  /* Spasi bawah aman untuk halaman yang memakai bottom navigation fixed.
+   * Memakai --bottom-nav-h sehingga selalu sinkron dengan tinggi nav. */
+  .pb-nav {
+    padding-bottom: calc(var(--bottom-nav-h) + var(--bottom-nav-gap));
+  }
+}
+
+/* Garis pemindai pada halaman scan (dipakai via animate-[scan-line_...]) */
+@keyframes scan-line {
+  0% {
+    transform: translateY(-25%);
+  }
+  100% {
+    transform: translateY(430%);
+  }
+}
