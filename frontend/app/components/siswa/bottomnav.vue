@@ -23,9 +23,12 @@ const menus: { key: MenuKey; label: string; icon: 'home' | 'history' | 'user'; t
   <!--
     Tinggi nav diambil dari --bottom-nav-h (lihat assets/css/main.css) yang juga
     dipakai halaman lewat .pb-nav, sehingga konten tidak akan pernah tertutup nav.
+
+    Lebar dibatasi max-w-[480px] dan diposisikan di tengah agar sama dengan
+    kotak aplikasi di app.vue. Kalau lebar di app.vue diubah, ubah di sini juga.
   -->
   <nav
-    class="fixed inset-x-0 bottom-0 z-30 h-[var(--bottom-nav-h)] border-t border-slate-100 bg-white shadow-[0_-4px_20px_-8px_rgba(15,23,42,0.15)]"
+    class="fixed bottom-0 left-1/2 z-30 h-[var(--bottom-nav-h)] w-full max-w-[480px] -translate-x-1/2 border-t border-slate-100 bg-white shadow-[0_-4px_20px_-8px_rgba(15,23,42,0.15)]"
     aria-label="Navigasi utama"
   >
     <ul

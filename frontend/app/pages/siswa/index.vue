@@ -8,6 +8,10 @@ const avatarInisial = computed(() => inisial(siswa.nama))
 const hariIni = new Date()
 const tanggalHariIni = computed(() => tanggalPanjang(hariIni))
 
+/** Status scan: dibuka/ditutup oleh petugas (lihat composables/useScanStatus.ts). */
+const { scanActive, refreshScanStatus } = useScanStatus()
+onMounted(refreshScanStatus)
+
 /** Absensi hari ini (null = belum absen) */
 const absenHariIni = {
   sudahHadir: true,
@@ -112,7 +116,9 @@ const riwayatTerbaru = riwayatAbsen.slice(0, 5)
               </span>
               <div>
                 <h2 class="text-base font-bold text-slate-900">Belum Absen</h2>
-                <p class="mt-0.5 text-sm text-slate-500">Lakukan absensi sebelum batas waktu.</p>
+                <p class="mt-0.5 text-sm text-slate-500">
+                  {{ scanActive ? 'Lakukan absensi sekarang.' : 'Menunggu petugas membuka absensi.' }}
+                </p>
               </div>
             </div>
           </template>
@@ -122,8 +128,9 @@ const riwayatTerbaru = riwayatAbsen.slice(0, 5)
 
     <!-- ── Konten di bawah blok ── -->
     <div class="px-5">
-      <!-- ── Tombol scan utama ── -->
+      <!-- ── Tombol scan utama (aktif) ── -->
       <NuxtLink
+        v-if="scanActive"
         to="/siswa/scan"
         class="mt-5 flex w-full items-center gap-4 rounded-2xl bg-brand-700 p-4 text-left text-white shadow-xl shadow-brand-700/25 transition active:scale-[0.98] active:bg-brand-800"
       >
@@ -138,6 +145,24 @@ const riwayatTerbaru = riwayatAbsen.slice(0, 5)
         </span>
         <AppIcon name="chevron-right" :size="22" class="text-white/70" />
       </NuxtLink>
+
+      <!-- ── Tombol scan (nonaktif: belum dibuka petugas) ── -->
+      <div
+        v-else
+        class="mt-5 flex w-full items-center gap-4 rounded-2xl bg-slate-100 p-4 text-left text-slate-500"
+        role="status"
+        aria-disabled="true"
+      >
+        <span class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-slate-200">
+          <AppIcon name="lock" :size="24" />
+        </span>
+        <span class="min-w-0 flex-1">
+          <span class="block text-base font-bold text-slate-600">Scan Wajah</span>
+          <span class="mt-0.5 block text-xs text-slate-400">
+            Menunggu petugas membuka absensi
+          </span>
+        </span>
+      </div>
 
       <!-- ── Daftar absensi terbaru ── -->
       <section class="mt-7">

@@ -3,9 +3,133 @@ const emit = defineEmits<{ 'update:open': [value: boolean]; success: [] }>()
 
 const props = defineProps<{ open: boolean }>()
 
-type Status = 'idle' | 'scanning' | 'success'
+type Status = 'idle' | 'scanning' | 'success' | 'error'
 const status = ref<Status>('idle')
+const errorMessage = ref('')
+const hasStoredCredential = ref(false)
+
+// ID kunci perangkat disimpan di browser. TODO: pindahkan ke backend saat tersedia.
+const CREDENTIAL_KEY = 'presensi_fp_credential'
+
 let timer: ReturnType<typeof setTimeout> | undefined
+let runId = 0
+
+function toBase64Url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  bytes.forEach((b) => (binary += String.fromCharCode(b)))
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function fromBase64Url(value: string): Uint8Array {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+  const binary = atob(padded)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes
+}
+
+function randomBytes(length: number): Uint8Array {
+  const bytes = new Uint8Array(length)
+  crypto.getRandomValues(bytes)
+  return bytes
+}
+
+function fail(message: string) {
+  status.value = 'error'
+  errorMessage.value = message
+}
+
+async function verifyFingerprint() {
+  const myRun = ++runId
+  status.value = 'scanning'
+  errorMessage.value = ''
+
+  const host = window.location.hostname
+  const isIpAddress = /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':')
+
+  if (!window.isSecureContext || !window.PublicKeyCredential) {
+    return fail('Browser ini tidak mendukung fingerprint, atau halaman tidak dibuka lewat HTTPS.')
+  }
+  if (isIpAddress) {
+    return fail('Fingerprint tidak bisa dipakai lewat alamat IP. Buka lewat alamat domain HTTPS (misalnya tunnel).')
+  }
+
+  try {
+    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+    if (!available) {
+      return fail('Perangkat ini belum mengaktifkan fingerprint atau kunci layar. Aktifkan dulu di pengaturan HP.')
+    }
+
+    // TODO: challenge seharusnya berasal dari backend agar bisa diverifikasi server.
+    const challenge = randomBytes(32)
+    const storedId = localStorage.getItem(CREDENTIAL_KEY)
+    hasStoredCredential.value = !!storedId
+
+    if (storedId) {
+      await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          rpId: host,
+          allowCredentials: [
+            { type: 'public-key', id: fromBase64Url(storedId), transports: ['internal'] },
+          ],
+          userVerification: 'required',
+          timeout: 60000,
+        },
+      })
+    } else {
+      const credential = (await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: { name: 'Absensi Digital', id: host },
+          // TODO: ganti dengan ID dan nama siswa asli dari backend.
+          user: { id: randomBytes(16), name: 'siswa', displayName: 'Siswa' },
+          pubKeyCredParams: [
+            { type: 'public-key', alg: -7 },
+            { type: 'public-key', alg: -257 },
+          ],
+          authenticatorSelection: {
+            authenticatorAttachment: 'platform',
+            userVerification: 'required',
+            residentKey: 'preferred',
+          },
+          timeout: 60000,
+          attestation: 'none',
+        },
+      })) as PublicKeyCredential | null
+
+      if (!credential) return fail('Pendaftaran fingerprint gagal. Coba lagi.')
+      localStorage.setItem(CREDENTIAL_KEY, toBase64Url(credential.rawId))
+      hasStoredCredential.value = true
+    }
+
+    // Abaikan hasil bila modal sudah ditutup atau ada percobaan yang lebih baru.
+    if (myRun !== runId || !props.open) return
+
+    status.value = 'success'
+    timer = setTimeout(() => emit('success'), 700)
+  } catch (err) {
+    if (myRun !== runId || !props.open) return
+    const name = (err as DOMException)?.name
+    if (name === 'NotAllowedError') {
+      fail('Verifikasi dibatalkan atau waktu habis. Coba lagi.')
+    } else if (name === 'SecurityError') {
+      fail('Alamat ini tidak didukung untuk fingerprint. Gunakan alamat domain HTTPS yang sah.')
+    } else if (name === 'NotSupportedError') {
+      fail('Perangkat ini tidak mendukung fingerprint untuk situs web.')
+    } else {
+      fail('Fingerprint gagal diproses. Coba lagi.')
+    }
+  }
+}
+
+function onDaftarUlang() {
+  localStorage.removeItem(CREDENTIAL_KEY)
+  hasStoredCredential.value = false
+  verifyFingerprint()
+}
 
 watch(
   () => props.open,
@@ -17,16 +141,13 @@ watch(
     }
 
     if (!open) {
+      runId++
       status.value = 'idle'
+      errorMessage.value = ''
       return
     }
 
-    // Simulasi proses pemindaian sidik jari.
-    status.value = 'scanning'
-    timer = setTimeout(() => {
-      status.value = 'success'
-      timer = setTimeout(() => emit('success'), 700)
-    }, 2500)
+    if (import.meta.client) verifyFingerprint()
   },
   { immediate: true },
 )
@@ -37,12 +158,14 @@ function onKeydown(e: KeyboardEvent) {
 
 function onBatal() {
   clearTimeout(timer)
+  runId++
   status.value = 'idle'
   emit('update:open', false)
 }
 
 onBeforeUnmount(() => {
   clearTimeout(timer)
+  runId++
   if (import.meta.client) window.removeEventListener('keydown', onKeydown)
 })
 </script>
@@ -75,26 +198,52 @@ onBeforeUnmount(() => {
 
           <h2 class="mt-5 text-lg font-bold text-slate-900">Verifikasi Fingerprint</h2>
           <p class="mt-1.5 text-sm leading-relaxed text-slate-500">
-            Silakan tempelkan sidik jari pada smartphone Anda.
+            Ikuti petunjuk sidik jari yang muncul di layar smartphone Anda.
           </p>
 
           <!-- Status pemindaian -->
           <p
             class="mt-5 flex items-center justify-center gap-2 text-sm font-semibold"
-            :class="status === 'success' ? 'text-brand-600' : 'text-brand-500/70'"
+            :class="[
+              status === 'success' ? 'text-brand-600' : '',
+              status === 'error' ? 'text-danger-600' : '',
+              status === 'scanning' || status === 'idle' ? 'text-brand-500/70' : '',
+            ]"
           >
             <span
-              class="size-2 rounded-full"
+              class="size-2 shrink-0 rounded-full"
               :class="[
                 status === 'scanning' ? 'animate-ping bg-brand-300' : '',
                 status === 'idle' ? 'bg-slate-300' : '',
                 status === 'success' ? 'bg-brand-500' : '',
+                status === 'error' ? 'bg-danger-600' : '',
               ]"
             />
-            <span v-if="status === 'scanning'">Memindai sidik jari…</span>
+            <span v-if="status === 'scanning'">Menunggu verifikasi di perangkat…</span>
             <span v-else-if="status === 'success'">Sidik jari dikenali</span>
+            <span v-else-if="status === 'error'">Verifikasi gagal</span>
             <span v-else>Menunggu sidik jari…</span>
           </p>
+
+          <!-- Pesan error -->
+          <p v-if="status === 'error'" class="mt-2 text-sm leading-relaxed text-slate-500">
+            {{ errorMessage }}
+          </p>
+
+          <!-- Tombol coba lagi (hanya saat gagal) -->
+          <button v-if="status === 'error'" type="button" class="btn-primary mt-5" @click="verifyFingerprint">
+            Coba Lagi
+          </button>
+
+          <!-- Daftar ulang kunci perangkat (hanya saat gagal dan sudah pernah terdaftar) -->
+          <button
+            v-if="status === 'error' && hasStoredCredential"
+            type="button"
+            class="mt-3 text-sm font-semibold text-brand-700 active:text-brand-800"
+            @click="onDaftarUlang"
+          >
+            Daftarkan ulang sidik jari
+          </button>
 
           <!-- Tombol batal -->
           <button type="button" class="btn-outline mt-6 border-brand-300 text-brand-700" @click="onBatal">
