@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\Murid\ScanController;
 use App\Http\Controllers\Api\Murid\StatusScanController;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -27,5 +28,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Endpoint untuk aplikasi murid. Endpoint petugas ditaruh di bawah awalan /petugas.
     Route::prefix('murid')->group(function () {
         Route::get('/status-scan', StatusScanController::class);
+        Route::post('/scan', ScanController::class)->middleware('throttle:10,1');
     });
 });
