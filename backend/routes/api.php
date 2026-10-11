@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\Murid\RiwayatController;
 use App\Http\Controllers\Api\Murid\ScanController;
 use App\Http\Controllers\Api\Murid\StatusScanController;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -29,5 +30,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('murid')->group(function () {
         Route::get('/status-scan', StatusScanController::class);
         Route::post('/scan', ScanController::class)->middleware('throttle:10,1');
+        Route::get('/riwayat', RiwayatController::class);
     });
 });
