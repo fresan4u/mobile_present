@@ -1,5 +1,9 @@
 import tailwindcss from '@tailwindcss/vite'
 
+// Alamat backend Laravel. Bawaan: server lokal `php artisan serve`.
+// Untuk server lain, jalankan Nuxt dengan variabel BACKEND_URL.
+const backendUrl = process.env.BACKEND_URL ?? 'http://127.0.0.1:8000'
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -9,6 +13,12 @@ export default defineNuxtConfig({
 
   vite: {
     plugins: [tailwindcss()],
+  },
+
+  // Semua permintaan /api/... diteruskan ke backend Laravel, sehingga browser
+  // hanya berhubungan dengan satu alamat dan tidak butuh pengaturan CORS.
+  routeRules: {
+    '/api/**': { proxy: `${backendUrl}/api/**` },
   },
 
   app: {

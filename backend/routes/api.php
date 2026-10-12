@@ -10,6 +10,11 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 
 /*
+| Semua permintaan ke /api/... otomatis diperlakukan sebagai JSON oleh middleware
+| global PaksaJson (didaftarkan di bootstrap/app.php), jadi tidak perlu dibungkus di sini.
+*/
+
+/*
 | Pembatas login: maksimal 5 percobaan per menit untuk setiap kombinasi
 | NIS/email dan alamat IP. Dikunci per akun agar Wi-Fi sekolah yang dipakai
 | bersama tidak memblokir semua murid sekaligus.
